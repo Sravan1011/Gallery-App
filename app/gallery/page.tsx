@@ -6,6 +6,8 @@ import { OrderBy } from 'unsplash-js';
 import { motion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { db, Reaction } from '@/lib/instantdb';
+import { tx, id } from '@instantdb/react';
 
 // Define a type for the Unsplash photo since the library types can be complex
 type Photo = {
@@ -29,6 +31,23 @@ export default function GalleryPage() {
     const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
+    const [userId, setUserId] = useState<string>("");
+
+    // Generate a random user ID on mount
+    useEffect(() => {
+        setUserId(Math.random().toString(36).substring(7));
+    }, []);
+
+    const addReaction = (emoji: string) => {
+        if (!selectedPhoto) return;
+
+        db.transact(tx.reactions[id()].update({
+            imageId: selectedPhoto.id,
+            emoji,
+            userId,
+            timestamp: Date.now(),
+        }));
+    };
 
     useEffect(() => {
         const fetchPhotos = async () => {
@@ -157,67 +176,152 @@ export default function GalleryPage() {
                 <DialogContent className="max-w-4xl w-full p-0 overflow-hidden bg-white/95 backdrop-blur-xl border-none shadow-2xl rounded-3xl">
                     <DialogTitle className="sr-only">Image Detail View</DialogTitle>
                     {selectedPhoto && (
-                        <div className="grid md:grid-cols-[1.5fr,1fr] h-[80vh]">
-                            {/* Image Section */}
-                            <div className="bg-black flex items-center justify-center relative group">
-                                <img
-                                    src={selectedPhoto.urls.regular}
-                                    alt={selectedPhoto.alt_description || 'Detail view'}
-                                    className="max-h-full max-w-full object-contain"
-                                />
-                            </div>
-
-                            {/* Interaction Section */}
-                            <div className="flex flex-col h-full border-l border-slate-100">
-                                {/* Header */}
-                                <div className="p-6 border-b border-slate-100 flex items-center gap-4">
-                                    <img
-                                        src={selectedPhoto.user.profile_image.small}
-                                        alt={selectedPhoto.user.name}
-                                        className="w-10 h-10 rounded-full ring-2 ring-indigo-50"
-                                    />
-                                    <div>
-                                        <h3 className="font-bold text-slate-900 leading-tight">{selectedPhoto.user.name}</h3>
-                                        <p className="text-xs text-slate-500">@{selectedPhoto.user.username}</p>
-                                    </div>
-                                </div>
-
-                                {/* Comments Area (Scrollable) */}
-                                <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                                    <div className="text-center text-slate-400 py-10">
-                                        <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3">
-                                            <span className="text-xl">💬</span>
-                                        </div>
-                                        <p>No comments yet. Be the first!</p>
-                                    </div>
-                                    {/* Real-time comments will go here */}
-                                </div>
-
-                                {/* Footer / Input Area */}
-                                <div className="p-4 border-t border-slate-100 bg-slate-50/50">
-                                    <div className="flex gap-2 mb-4">
-                                        {/* Reaction Bar */}
-                                        <button className="text-2xl hover:scale-110 transition-transform">❤️</button>
-                                        <button className="text-2xl hover:scale-110 transition-transform">🔥</button>
-                                        <button className="text-2xl hover:scale-110 transition-transform">👏</button>
-                                        <button className="text-2xl hover:scale-110 transition-transform">😂</button>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <input
-                                            type="text"
-                                            placeholder="Write a comment..."
-                                            className="flex-1 px-4 py-2 rounded-full border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                                        />
-                                        <button className="px-4 py-2 bg-indigo-600 text-white rounded-full font-medium text-sm hover:bg-indigo-700 transition-colors">
-                                            Post
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <PhotoDetailView selectedPhoto={selectedPhoto} userId={userId} addReaction={addReaction} />
                     )}
                 </DialogContent>
             </Dialog>
+        </div>
+    );
+}
+
+function PhotoDetailView({ selectedPhoto, userId, addReaction }: { selectedPhoto: Photo, userId: string, addReaction: (emoji: string) => void }) {
+    // Query reactions and comments for this specific image
+    const { isLoading, error, data } = db.useQuery({
+        reactions: {
+            $: {
+                where: { imageId: selectedPhoto.id }
+            }
+        },
+        comments: {
+            $: {
+                where: { imageId: selectedPhoto.id }
+            }
+        }
+    });
+
+    const [commentText, setCommentText] = useState("");
+
+    if (isLoading) return <div className="p-12 text-center">Loading interactions...</div>;
+    if (error) return <div className="p-12 text-center text-red-500">Error loading data: {error.message}</div>;
+
+    const reactions = data?.reactions || [];
+    const comments = data?.comments || [];
+
+    const handlePostComment = () => {
+        if (!commentText.trim()) return;
+
+        db.transact(tx.comments[id()].update({
+            imageId: selectedPhoto.id,
+            text: commentText,
+            userId,
+            userName: "User " + userId.slice(0, 4), // Simple alias
+            userAvatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`,
+            timestamp: Date.now(),
+        }));
+
+        setCommentText("");
+    };
+
+    // Group reactions by emoji
+    const reactionCounts = reactions.reduce((acc, reaction) => {
+        acc[reaction.emoji] = (acc[reaction.emoji] || 0) + 1;
+        return acc;
+    }, {} as Record<string, number>);
+
+    return (
+        <div className="grid md:grid-cols-[1.5fr,1fr] h-[80vh]">
+            {/* Image Section */}
+            <div className="bg-black flex items-center justify-center relative group">
+                <img
+                    src={selectedPhoto.urls.regular}
+                    alt={selectedPhoto.alt_description || 'Detail view'}
+                    className="max-h-full max-w-full object-contain"
+                />
+
+                {/* Floating Reactions Stream (Simple version) */}
+                <div className="absolute bottom-4 left-4 flex gap-2">
+                    {Object.entries(reactionCounts).map(([emoji, count]) => (
+                        <div key={emoji} className="bg-black/50 backdrop-blur-md text-white px-3 py-1 rounded-full text-sm font-medium animate-in fade-in zoom-in duration-300">
+                            {emoji} {count}
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Interaction Section */}
+            <div className="flex flex-col h-full border-l border-slate-100">
+                {/* Header */}
+                <div className="p-6 border-b border-slate-100 flex items-center gap-4">
+                    <img
+                        src={selectedPhoto.user.profile_image.small}
+                        alt={selectedPhoto.user.name}
+                        className="w-10 h-10 rounded-full ring-2 ring-indigo-50"
+                    />
+                    <div>
+                        <h3 className="font-bold text-slate-900 leading-tight">{selectedPhoto.user.name}</h3>
+                        <p className="text-xs text-slate-500">@{selectedPhoto.user.username}</p>
+                    </div>
+                </div>
+
+                {/* Comments Area (Scrollable) */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                    {/* 1. Comments List */}
+                    <div className="space-y-4">
+                        {comments.sort((a, b) => a.timestamp - b.timestamp).map(comment => (
+                            <div key={comment.id} className="flex gap-3 animate-in fade-in slide-in-from-bottom-2">
+                                <img src={comment.userAvatar} alt="avatar" className="w-8 h-8 rounded-full bg-slate-100" />
+                                <div className="bg-slate-50 p-3 rounded-2xl rounded-tl-none">
+                                    <p className="text-xs font-bold text-slate-700 mb-1">{comment.userName}</p>
+                                    <p className="text-sm text-slate-800">{comment.text}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* 2. Empty State / Reactions Stream */}
+                    {comments.length === 0 && reactions.length === 0 && (
+                        <div className="text-center text-slate-400 py-10">
+                            <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                                <span className="text-xl">💬</span>
+                            </div>
+                            <p>No interactions yet. Be the first!</p>
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer / Input Area */}
+                <div className="p-4 border-t border-slate-100 bg-slate-50/50">
+                    <div className="flex gap-2 mb-4">
+                        {/* Reaction Bar */}
+                        {['❤️', '🔥', '👏', '😂'].map(emoji => (
+                            <button
+                                key={emoji}
+                                onClick={() => addReaction(emoji)}
+                                className="text-2xl hover:scale-110 transition-transform active:scale-95 p-2 rounded-full hover:bg-slate-200/50"
+                            >
+                                {emoji}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            value={commentText}
+                            onChange={(e) => setCommentText(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handlePostComment()}
+                            placeholder="Write a comment..."
+                            className="flex-1 px-4 py-2 rounded-full border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                        />
+                        <button
+                            onClick={handlePostComment}
+                            disabled={!commentText.trim()}
+                            className="px-4 py-2 bg-indigo-600 text-white rounded-full font-medium text-sm hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Post
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }
