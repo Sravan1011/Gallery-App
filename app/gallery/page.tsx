@@ -5,6 +5,7 @@ import { unsplash } from '@/lib/unsplash';
 import { OrderBy } from 'unsplash-js';
 import { motion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 
 // Define a type for the Unsplash photo since the library types can be complex
 type Photo = {
@@ -25,6 +26,7 @@ type Photo = {
 
 export default function GalleryPage() {
     const [photos, setPhotos] = useState<Photo[]>([]);
+    const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
 
@@ -98,7 +100,8 @@ export default function GalleryPage() {
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ duration: 0.4, delay: index * 0.05 }}
-                                    className="group relative bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+                                    className="group relative bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-zoom-in"
+                                    onClick={() => setSelectedPhoto(photo)}
                                 >
                                     <div className="aspect-[3/4] overflow-hidden bg-slate-100 relative">
                                         <img
@@ -148,6 +151,73 @@ export default function GalleryPage() {
                     </>
                 )}
             </div>
+
+            {/* Image Detail Modal */}
+            <Dialog open={!!selectedPhoto} onOpenChange={(open) => !open && setSelectedPhoto(null)}>
+                <DialogContent className="max-w-4xl w-full p-0 overflow-hidden bg-white/95 backdrop-blur-xl border-none shadow-2xl rounded-3xl">
+                    <DialogTitle className="sr-only">Image Detail View</DialogTitle>
+                    {selectedPhoto && (
+                        <div className="grid md:grid-cols-[1.5fr,1fr] h-[80vh]">
+                            {/* Image Section */}
+                            <div className="bg-black flex items-center justify-center relative group">
+                                <img
+                                    src={selectedPhoto.urls.regular}
+                                    alt={selectedPhoto.alt_description || 'Detail view'}
+                                    className="max-h-full max-w-full object-contain"
+                                />
+                            </div>
+
+                            {/* Interaction Section */}
+                            <div className="flex flex-col h-full border-l border-slate-100">
+                                {/* Header */}
+                                <div className="p-6 border-b border-slate-100 flex items-center gap-4">
+                                    <img
+                                        src={selectedPhoto.user.profile_image.small}
+                                        alt={selectedPhoto.user.name}
+                                        className="w-10 h-10 rounded-full ring-2 ring-indigo-50"
+                                    />
+                                    <div>
+                                        <h3 className="font-bold text-slate-900 leading-tight">{selectedPhoto.user.name}</h3>
+                                        <p className="text-xs text-slate-500">@{selectedPhoto.user.username}</p>
+                                    </div>
+                                </div>
+
+                                {/* Comments Area (Scrollable) */}
+                                <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                                    <div className="text-center text-slate-400 py-10">
+                                        <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                                            <span className="text-xl">💬</span>
+                                        </div>
+                                        <p>No comments yet. Be the first!</p>
+                                    </div>
+                                    {/* Real-time comments will go here */}
+                                </div>
+
+                                {/* Footer / Input Area */}
+                                <div className="p-4 border-t border-slate-100 bg-slate-50/50">
+                                    <div className="flex gap-2 mb-4">
+                                        {/* Reaction Bar */}
+                                        <button className="text-2xl hover:scale-110 transition-transform">❤️</button>
+                                        <button className="text-2xl hover:scale-110 transition-transform">🔥</button>
+                                        <button className="text-2xl hover:scale-110 transition-transform">👏</button>
+                                        <button className="text-2xl hover:scale-110 transition-transform">😂</button>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            placeholder="Write a comment..."
+                                            className="flex-1 px-4 py-2 rounded-full border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                        />
+                                        <button className="px-4 py-2 bg-indigo-600 text-white rounded-full font-medium text-sm hover:bg-indigo-700 transition-colors">
+                                            Post
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
