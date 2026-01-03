@@ -1,25 +1,36 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { ArrowRight, Image as ImageIcon, MessageSquare, Zap } from 'lucide-react';
+import { ArrowRight, Zap, Camera, Globe, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-indigo-100 selection:text-indigo-900 overflow-x-hidden">
+    <div className="min-h-screen bg-neutral-950 text-neutral-100 font-sans selection:bg-indigo-500/30 overflow-x-hidden">
+      {/* Ambient Background */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-500/10 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-purple-500/10 rounded-full blur-[120px]" />
+      </div>
+
       {/* Navigation */}
-      <nav className="fixed w-full z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+      <nav className="fixed w-full z-50 bg-neutral-950/80 backdrop-blur-md border-b border-white/5">
+        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-2 font-bold text-xl tracking-tighter">
-            <Zap className="w-6 h-6 text-indigo-600" />
-            <span>PixelSync</span>
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+              <Zap className="w-5 h-5 text-white" />
+            </div>
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-white to-white/70">PixelSync</span>
           </div>
-          <div className="flex gap-4 items-center">
-            <Link href="/login" className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
-              Sign In
+          <div className="flex gap-6 items-center">
+            <Link href="/gallery" className="hidden md:block text-sm font-medium text-neutral-400 hover:text-white transition-colors">
+              Gallery
             </Link>
-            <Button asChild className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-lg shadow-indigo-200">
+            <Link href="/feed" className="hidden md:block text-sm font-medium text-neutral-400 hover:text-white transition-colors">
+              Global Feed
+            </Link>
+            <Button asChild className="bg-white text-black hover:bg-neutral-200 rounded-full font-semibold px-6 shadow-[0_0_20px_rgba(255,255,255,0.1)]">
               <Link href="/gallery">Launch App</Link>
             </Button>
           </div>
@@ -27,85 +38,49 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative pt-32 pb-20 md:pt-48 md:pb-32 px-6">
-        <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-12 items-center">
+      <section className="relative pt-40 pb-20 md:pt-52 md:pb-32 px-6 z-10">
+        <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
           >
-            <h1 className="text-5xl md:text-7xl font-bold tracking-tight leading-[1.1] mb-6">
-              Experience logic <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">
-                at the speed of light.
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-indigo-300 mb-6 backdrop-blur-sm">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+              </span>
+              Real-time Interaction Engine
+            </div>
+            <h1 className="text-5xl md:text-7xl font-bold tracking-tight leading-[1.1] mb-6 text-white">
+              Experience visual <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-indigo-400 animate-gradient-x">
+                storytelling synchronized.
               </span>
             </h1>
-            <p className="text-xl text-slate-600 mb-8 max-w-lg leading-relaxed">
-              A real-time gallery where every reaction, comment, and look happens instantly across the globe. No refreshes. Just sync.
+            <p className="text-xl text-neutral-400 mb-10 max-w-lg leading-relaxed font-light">
+              A real-time gallery where every reaction, comment, and look happens instantly across user sessions. No refreshes. Just pure sync.
             </p>
             <div className="flex flex-wrap gap-4">
-              <Button asChild size="lg" className="bg-slate-900 text-white rounded-full text-lg hover:bg-slate-800 shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all">
+              <Button asChild size="lg" className="bg-indigo-600 text-white rounded-full text-lg hover:bg-indigo-500 shadow-lg shadow-indigo-500/25 px-8 h-12 transition-all hover:scale-105">
                 <Link href="/gallery" className="group flex items-center gap-2">
                   Start Exploring
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Link>
               </Button>
-              <Button variant="outline" size="lg" className="rounded-full text-lg bg-white hover:bg-slate-50 text-slate-900 border-slate-200">
-                View Demo
+              <Button asChild variant="outline" size="lg" className="rounded-full text-lg bg-transparent text-white border-white/10 hover:bg-white/5 px-8 h-12 backdrop-blur-sm hover:border-white/20">
+                <Link href="/feed">View Activity</Link>
               </Button>
             </div>
           </motion.div>
 
+          {/* New Hero Visual */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
+            initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.8, delay: 0.2 }}
             className="relative"
           >
-            <div className="relative z-10 grid grid-cols-2 gap-4">
-              {/* Mockup Images - using placeholders creatively */}
-              <div className="space-y-4 translate-y-8">
-                <div className="h-64 bg-indigo-100 rounded-2xl overflow-hidden shadow-lg border border-indigo-50 relative group">
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
-                    <span className="text-white text-sm font-medium">✨ Sarah liked this</span>
-                  </div>
-                </div>
-                <div className="h-48 bg-purple-100 rounded-2xl overflow-hidden shadow-lg border border-purple-50"></div>
-              </div>
-              <div className="space-y-4">
-                <div className="h-48 bg-pink-100 rounded-2xl overflow-hidden shadow-lg border border-pink-50"></div>
-                <div className="h-64 bg-slate-200 rounded-2xl overflow-hidden shadow-lg border border-slate-100 relative">
-                  <div className="absolute top-4 right-4 bg-white px-3 py-1 rounded-full text-xs font-bold shadow-sm text-indigo-600 flex items-center gap-1">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                    LIVE
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Decorative blurs */}
-            <div className="absolute -top-20 -right-20 w-96 h-96 bg-indigo-200/30 rounded-full blur-3xl -z-10"></div>
-            <div className="absolute -bottom-20 -left-20 w-96 h-96 bg-purple-200/30 rounded-full blur-3xl -z-10"></div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section className="py-24 bg-white">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center max-w-3xl mx-auto mb-20">
-            <h2 className="text-3xl md:text-5xl font-bold mb-6">Built for instant gratification.</h2>
-            <p className="text-lg text-slate-600">
-              Why wait for a reload? PixelSync keeps everyone on the same page, literally and figuratively.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            <FeatureCard
-              icon={<ImageIcon className="w-8 h-8 text-indigo-600" />}
-              title="Beautiful Gallery"
-              description="Explore high-quality images from Unsplash in a seamless, infinite-scrolling grid layout."
-            />
             <FeatureCard
               icon={<Zap className="w-8 h-8 text-purple-600" />}
               title="Real-time Reactions"
@@ -116,12 +91,12 @@ export default function LandingPage() {
               title="Live Comments"
               description="Engage in conversations that update live. Chat with others viewing the same masterpiece."
             />
-          </div>
+          </motion.div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 px-6">
+      <section className="py-24 px-6" >
         <div className="max-w-5xl mx-auto bg-slate-900 rounded-[2.5rem] p-12 md:p-24 text-center overflow-hidden relative">
           <div className="relative z-10">
             <h2 className="text-3xl md:text-5xl font-bold text-white mb-8">Ready to sync up?</h2>

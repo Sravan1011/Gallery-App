@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { unsplash } from '@/lib/unsplash';
 import { OrderBy } from 'unsplash-js';
 import { motion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { db, Reaction } from '@/lib/instantdb';
+import { db } from '@/lib/instantdb';
 import { tx, id } from '@instantdb/react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -29,83 +29,94 @@ type Photo = {
     };
 };
 
-export default function GalleryPage() {
+function GalleryContent() {
     const [photos, setPhotos] = useState<Photo[]>([]);
-    const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
+    const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
     const [userId, setUserId] = useState<string>("");
 
     const searchParams = useSearchParams();
     const router = useRouter();
-    const photoIdParam = searchParams.get('photoId');
 
-    // Generate a random user ID on mount or retrieve from localStorage
+    // Initialize User ID on mount (client-side only)
     useEffect(() => {
-        const storedUserId = localStorage.getItem("pixelsync_user_id");
-        if (storedUserId) {
-            setUserId(storedUserId);
-        } else {
-            const newId = Math.random().toString(36).substring(7);
-            localStorage.setItem("pixelsync_user_id", newId);
-            setUserId(newId);
+        let currentUserId = localStorage.getItem('gallery_user_id');
+        if (!currentUserId) {
+            currentUserId = id();
+            localStorage.setItem('gallery_user_id', currentUserId);
         }
+        setUserId(currentUserId);
     }, []);
 
-    // Deep Linking: Open photo if param exists
+    // Handle Deep Linking
     useEffect(() => {
-        if (photoIdParam && !selectedPhoto) {
-            const fetchPhoto = async () => {
-                try {
-                    const result = await unsplash.photos.get({ photoId: photoIdParam });
-                    if (result.type === 'success') {
-                        setSelectedPhoto(result.response as unknown as Photo);
+        const photoId = searchParams.get('photoId');
+        if (photoId && photos.length > 0) {
+            // Check if photo is already loaded
+            const photo = photos.find(p => p.id === photoId);
+            if (photo) {
+                setSelectedPhoto(photo);
+            } else {
+                // Fetch specific photo if not in current list
+                const fetchSpecificPhoto = async () => {
+                    
+                    if (!process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY) return; // Handle missing key gracefully
+                    try {
+                        const result = await unsplash.photos.get({ photoId });
+                        if (result.type === 'success') {
+                            setSelectedPhoto(result.response as unknown as Photo);
+                        }
+                    } catch (e) {
+                        console.error("Failed to fetch deep-linked photo", e);
                     }
-                } catch (e) {
-                    console.error("Failed to load deep linked photo", e);
                 }
-            };
-            fetchPhoto();
+                fetchSpecificPhoto();
+            }
+        } else if (!photoId) {
+            setSelectedPhoto(null);
         }
-    }, [photoIdParam]);
+    }, [searchParams, photos]);
 
-    // Update URL when opening/closing modal
+
+    // Wrapper to update URL when selecting a photo
     const handlePhotoSelect = (photo: Photo | null) => {
-        setSelectedPhoto(photo);
         if (photo) {
-            router.push(`/gallery?photoId=${photo.id}`, { scroll: false });
+            router.push('/gallery?photoId=' + photo.id, { scroll: false });
         } else {
             router.push('/gallery', { scroll: false });
         }
+        setSelectedPhoto(photo);
     };
 
     useEffect(() => {
         const fetchPhotos = async () => {
-            try {
-                setLoading(true);
-                // Fallback to mock data if no key is present (for dev experience)
-                if (!process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY) {
-                    console.warn("No Unsplash Key found, using mock data");
-                    // Simulate delay
-                    await new Promise(resolve => setTimeout(resolve, 800));
+            setLoading(true);
+            
 
-                    const mockPhotos = Array.from({ length: 12 }).map((_, i) => ({
-                        id: `mock-${page}-${i}`,
-                        urls: {
-                            regular: `https://picsum.photos/seed/${page * 100 + i}/800/600`,
-                            small: `https://picsum.photos/seed/${page * 100 + i}/400/300`
-                        },
-                        alt_description: "Mock image",
-                        user: {
-                            name: "Mock User",
-                            username: "mockuser",
-                            profile_image: { small: "https://github.com/shadcn.png" }
-                        }
-                    }));
-                    setPhotos(mockPhotos);
-                    setLoading(false);
-                    return;
-                }
+            if (!process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY) {
+                console.warn('Unsplash API key missing, using mock data');
+                // Mock data for development/preview without API key
+                const mockPhotos: Photo[] = Array.from({ length: 12 }).map((_, i) => ({
+                    id: 'mock-' + i + '-' + page,
+                    urls: {
+                        regular: `https://picsum.photos/seed/${i + page * 10}/800/1000`,
+                        small: `https://picsum.photos/seed/${i + page * 10}/400/500`,
+                    },
+                    alt_description: 'Mock Photo',
+                    user: {
+                        name: `Photographer ${i + 1}`,
+                        username: `user${i + 1}`,
+                        profile_image: { small: "https://github.com/shadcn.png" }
+                    }
+                }));
+                setPhotos(mockPhotos);
+                setLoading(false);
+                return;
+            }
+
+            try {
+                // If we are deep-linking to a specific photo, we might want to ensure we fetch it or just general gallery
 
                 const result = await unsplash.photos.list({
                     page,
@@ -219,20 +230,32 @@ export default function GalleryPage() {
                             </button>
                         </div>
                     </>
-                )
-                }
-            </div >
+                )}
+            </div>
 
             {/* Image Detail Modal */}
-            < Dialog open={!!selectedPhoto} onOpenChange={(open) => !open && handlePhotoSelect(null)}>
+            <Dialog open={!!selectedPhoto} onOpenChange={(open) => !open && handlePhotoSelect(null)}>
                 <DialogContent className="max-w-5xl w-[95vw] h-[90vh] p-0 overflow-hidden bg-neutral-900 border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] rounded-3xl z-50">
                     <DialogTitle className="sr-only">Image Detail View</DialogTitle>
                     {selectedPhoto && (
                         <PhotoDetailView selectedPhoto={selectedPhoto} userId={userId} />
                     )}
                 </DialogContent>
-            </Dialog >
-        </div >
+            </Dialog>
+        </div>
+    );
+}
+
+export default function GalleryPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex flex-col justify-center items-center h-screen bg-neutral-950 gap-4">
+                <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
+                <p className="text-neutral-500 animate-pulse">Initializing Gallery...</p>
+            </div>
+        }>
+            <GalleryContent />
+        </Suspense>
     );
 }
 
@@ -377,7 +400,7 @@ function PhotoDetailView({ selectedPhoto, userId }: { selectedPhoto: Photo, user
                     {comments.length === 0 && (
                         <div className="h-full flex flex-col items-center justify-center text-slate-300 mt-[-40px]">
                             <div className="w-16 h-16 bg-slate-50 rounded-2xl rotate-3 mb-4 flex items-center justify-center shadow-sm border border-slate-100">
-                                <span className="text-2xlgrayscale opacity-50">�</span>
+                                <span className="text-2xl grayscale opacity-50">💬</span>
                             </div>
                             <p className="font-medium text-slate-400">Start the conversation</p>
                         </div>
