@@ -6,9 +6,6 @@ import Link from 'next/link';
 import { useMemo } from 'react';
 
 export default function FeedPage() {
-    // Fetch all reactions and comments
-    // In a real app we would set a limit, but InstantDB beta might not support 'limit' in useQuery yet depending on version,
-    // so we'll fetch and slice on client for this demo.
     const { isLoading, error, data } = db.useQuery({
         reactions: {},
         comments: {}

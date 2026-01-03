@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { db, Reaction } from '@/lib/instantdb';
 import { tx, id } from '@instantdb/react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 // Define a type for the Unsplash photo since the library types can be complex
 type Photo = {
@@ -38,9 +39,16 @@ export default function GalleryPage() {
     const router = useRouter();
     const photoIdParam = searchParams.get('photoId');
 
-    // Generate a random user ID on mount
+    // Generate a random user ID on mount or retrieve from localStorage
     useEffect(() => {
-        setUserId(Math.random().toString(36).substring(7));
+        const storedUserId = localStorage.getItem("pixelsync_user_id");
+        if (storedUserId) {
+            setUserId(storedUserId);
+        } else {
+            const newId = Math.random().toString(36).substring(7);
+            localStorage.setItem("pixelsync_user_id", newId);
+            setUserId(newId);
+        }
     }, []);
 
     // Deep Linking: Open photo if param exists
@@ -68,17 +76,6 @@ export default function GalleryPage() {
         } else {
             router.push('/gallery', { scroll: false });
         }
-    };
-
-    const addReaction = (emoji: string) => {
-        if (!selectedPhoto) return;
-
-        db.transact(tx.reactions[id()].update({
-            imageId: selectedPhoto.id,
-            emoji,
-            userId,
-            timestamp: Date.now(),
-        }));
     };
 
     useEffect(() => {
@@ -133,9 +130,14 @@ export default function GalleryPage() {
     return (
         <div className="min-h-screen bg-slate-50 p-6 md:p-12">
             <div className="max-w-7xl mx-auto">
-                <div className="mb-12">
-                    <h1 className="text-4xl font-bold tracking-tight mb-4">Gallery</h1>
-                    <p className="text-slate-500">Curated visuals from around the world. React instantly.</p>
+                <div className="mb-12 flex justify-between items-end">
+                    <div>
+                        <h1 className="text-4xl font-bold tracking-tight mb-4">Gallery</h1>
+                        <p className="text-slate-500">Curated visuals from around the world. React instantly.</p>
+                    </div>
+                    <Link href="/feed" className="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 rounded-full text-sm font-medium hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm">
+                        <span>🌍</span> View Global Activity
+                    </Link>
                 </div>
 
                 {loading ? (
@@ -208,7 +210,7 @@ export default function GalleryPage() {
                 <DialogContent className="max-w-4xl w-full p-0 overflow-hidden bg-white/95 backdrop-blur-xl border-none shadow-2xl rounded-3xl">
                     <DialogTitle className="sr-only">Image Detail View</DialogTitle>
                     {selectedPhoto && (
-                        <PhotoDetailView selectedPhoto={selectedPhoto} userId={userId} addReaction={addReaction} />
+                        <PhotoDetailView selectedPhoto={selectedPhoto} userId={userId} />
                     )}
                 </DialogContent>
             </Dialog>
@@ -216,7 +218,7 @@ export default function GalleryPage() {
     );
 }
 
-function PhotoDetailView({ selectedPhoto, userId, addReaction }: { selectedPhoto: Photo, userId: string, addReaction: (emoji: string) => void }) {
+function PhotoDetailView({ selectedPhoto, userId }: { selectedPhoto: Photo, userId: string }) {
     // Query reactions and comments for this specific image
     const { isLoading, error, data } = db.useQuery({
         reactions: {
@@ -239,6 +241,27 @@ function PhotoDetailView({ selectedPhoto, userId, addReaction }: { selectedPhoto
     const reactions = data?.reactions || [];
     const comments = data?.comments || [];
 
+    const toggleReaction = (emoji: string) => {
+        const existingReaction = reactions.find(
+            (r: any) => r.userId === userId && r.emoji === emoji
+        );
+
+        if (existingReaction) {
+            db.transact(tx.reactions[existingReaction.id].delete());
+        } else {
+            db.transact(tx.reactions[id()].update({
+                imageId: selectedPhoto.id,
+                emoji,
+                userId,
+                timestamp: Date.now(),
+            }));
+        }
+    };
+
+    const deleteComment = (commentId: string) => {
+        db.transact(tx.comments[commentId].delete());
+    };
+
     const handlePostComment = () => {
         if (!commentText.trim()) return;
 
@@ -260,10 +283,15 @@ function PhotoDetailView({ selectedPhoto, userId, addReaction }: { selectedPhoto
         return acc;
     }, {} as Record<string, number>);
 
+    // Check which emojis the current user has selected
+    const userReactions = new Set(
+        reactions.filter((r: any) => r.userId === userId).map((r: any) => r.emoji)
+    );
+
     return (
         <div className="grid md:grid-cols-[1.5fr,1fr] h-[80vh]">
             {/* Image Section */}
-            <div className="bg-black flex items-center justify-center relative group">
+            <div className="bg-black flex items-center justify-center relative group min-h-[300px]">
                 <img
                     src={selectedPhoto.urls.regular}
                     alt={selectedPhoto.alt_description || 'Detail view'}
@@ -271,7 +299,7 @@ function PhotoDetailView({ selectedPhoto, userId, addReaction }: { selectedPhoto
                 />
 
                 {/* Floating Reactions Stream (Simple version) */}
-                <div className="absolute bottom-4 left-4 flex gap-2">
+                <div className="absolute bottom-4 left-4 flex gap-2 flex-wrap">
                     {Object.entries(reactionCounts).map(([emoji, count]) => (
                         <div key={emoji} className="bg-black/50 backdrop-blur-md text-white px-3 py-1 rounded-full text-sm font-medium animate-in fade-in zoom-in duration-300">
                             {emoji} {count}
@@ -281,9 +309,9 @@ function PhotoDetailView({ selectedPhoto, userId, addReaction }: { selectedPhoto
             </div>
 
             {/* Interaction Section */}
-            <div className="flex flex-col h-full border-l border-slate-100">
+            <div className="flex flex-col h-full border-l border-slate-100 bg-white">
                 {/* Header */}
-                <div className="p-6 border-b border-slate-100 flex items-center gap-4">
+                <div className="p-6 border-b border-slate-100 flex items-center gap-4 shrink-0">
                     <img
                         src={selectedPhoto.user.profile_image.small}
                         alt={selectedPhoto.user.name}
@@ -296,22 +324,33 @@ function PhotoDetailView({ selectedPhoto, userId, addReaction }: { selectedPhoto
                 </div>
 
                 {/* Comments Area (Scrollable) */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                <div className="flex-1 overflow-y-auto p-6 space-y-6 min-h-0">
                     {/* 1. Comments List */}
                     <div className="space-y-4">
                         {comments.sort((a, b) => a.timestamp - b.timestamp).map(comment => (
-                            <div key={comment.id} className="flex gap-3 animate-in fade-in slide-in-from-bottom-2">
-                                <img src={comment.userAvatar} alt="avatar" className="w-8 h-8 rounded-full bg-slate-100" />
-                                <div className="bg-slate-50 p-3 rounded-2xl rounded-tl-none">
-                                    <p className="text-xs font-bold text-slate-700 mb-1">{comment.userName}</p>
-                                    <p className="text-sm text-slate-800">{comment.text}</p>
+                            <div key={comment.id} className="flex gap-3 animate-in fade-in slide-in-from-bottom-2 group">
+                                <img src={comment.userAvatar} alt="avatar" className="w-8 h-8 rounded-full bg-slate-100 shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                    <div className="bg-slate-50 p-3 rounded-2xl rounded-tl-none relative group/item">
+                                        <p className="text-xs font-bold text-slate-700 mb-1">{comment.userName}</p>
+                                        <p className="text-sm text-slate-800 break-words">{comment.text}</p>
+                                        {comment.userId === userId && (
+                                            <button
+                                                onClick={() => deleteComment(comment.id)}
+                                                className="absolute top-2 right-2 text-slate-400 hover:text-red-500 opacity-0 group-hover/item:opacity-100 transition-opacity p-1"
+                                                title="Delete comment"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         ))}
                     </div>
 
                     {/* 2. Empty State / Reactions Stream */}
-                    {comments.length === 0 && reactions.length === 0 && (
+                    {comments.length === 0 && (
                         <div className="text-center text-slate-400 py-10">
                             <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3">
                                 <span className="text-xl">💬</span>
@@ -322,18 +361,21 @@ function PhotoDetailView({ selectedPhoto, userId, addReaction }: { selectedPhoto
                 </div>
 
                 {/* Footer / Input Area */}
-                <div className="p-4 border-t border-slate-100 bg-slate-50/50">
-                    <div className="flex gap-2 mb-4">
+                <div className="p-4 border-t border-slate-100 bg-slate-50/50 shrink-0">
+                    <div className="flex gap-2 mb-4 justify-center md:justify-start">
                         {/* Reaction Bar */}
-                        {['❤️', '🔥', '👏', '😂'].map(emoji => (
-                            <button
-                                key={emoji}
-                                onClick={() => addReaction(emoji)}
-                                className="text-2xl hover:scale-110 transition-transform active:scale-95 p-2 rounded-full hover:bg-slate-200/50"
-                            >
-                                {emoji}
-                            </button>
-                        ))}
+                        {['❤️', '🔥', '👏', '😂'].map(emoji => {
+                            const isSelected = userReactions.has(emoji);
+                            return (
+                                <button
+                                    key={emoji}
+                                    onClick={() => toggleReaction(emoji)}
+                                    className={`text-2xl transition-all p-2 rounded-full hover:bg-slate-200/50 ${isSelected ? 'bg-indigo-100 scale-110 ring-2 ring-indigo-200' : 'hover:scale-110 active:scale-95'}`}
+                                >
+                                    {emoji}
+                                </button>
+                            );
+                        })}
                     </div>
                     <div className="flex gap-2">
                         <input
