@@ -8,6 +8,7 @@ import { Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { db, Reaction } from '@/lib/instantdb';
 import { tx, id } from '@instantdb/react';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 // Define a type for the Unsplash photo since the library types can be complex
 type Photo = {
@@ -33,10 +34,41 @@ export default function GalleryPage() {
     const [page, setPage] = useState(1);
     const [userId, setUserId] = useState<string>("");
 
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const photoIdParam = searchParams.get('photoId');
+
     // Generate a random user ID on mount
     useEffect(() => {
         setUserId(Math.random().toString(36).substring(7));
     }, []);
+
+    // Deep Linking: Open photo if param exists
+    useEffect(() => {
+        if (photoIdParam && !selectedPhoto) {
+            const fetchPhoto = async () => {
+                try {
+                    const result = await unsplash.photos.get({ photoId: photoIdParam });
+                    if (result.type === 'success') {
+                        setSelectedPhoto(result.response as unknown as Photo);
+                    }
+                } catch (e) {
+                    console.error("Failed to load deep linked photo", e);
+                }
+            };
+            fetchPhoto();
+        }
+    }, [photoIdParam]);
+
+    // Update URL when opening/closing modal
+    const handlePhotoSelect = (photo: Photo | null) => {
+        setSelectedPhoto(photo);
+        if (photo) {
+            router.push(`/gallery?photoId=${photo.id}`, { scroll: false });
+        } else {
+            router.push('/gallery', { scroll: false });
+        }
+    };
 
     const addReaction = (emoji: string) => {
         if (!selectedPhoto) return;
@@ -120,7 +152,7 @@ export default function GalleryPage() {
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ duration: 0.4, delay: index * 0.05 }}
                                     className="group relative bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-zoom-in"
-                                    onClick={() => setSelectedPhoto(photo)}
+                                    onClick={() => handlePhotoSelect(photo)}
                                 >
                                     <div className="aspect-[3/4] overflow-hidden bg-slate-100 relative">
                                         <img
@@ -172,7 +204,7 @@ export default function GalleryPage() {
             </div>
 
             {/* Image Detail Modal */}
-            <Dialog open={!!selectedPhoto} onOpenChange={(open) => !open && setSelectedPhoto(null)}>
+            <Dialog open={!!selectedPhoto} onOpenChange={(open) => !open && handlePhotoSelect(null)}>
                 <DialogContent className="max-w-4xl w-full p-0 overflow-hidden bg-white/95 backdrop-blur-xl border-none shadow-2xl rounded-3xl">
                     <DialogTitle className="sr-only">Image Detail View</DialogTitle>
                     {selectedPhoto && (
