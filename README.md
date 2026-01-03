@@ -12,7 +12,7 @@ PixelSync is a real-time collaborative gallery application where users can view 
 
 1.  **Clone the repository** (if you haven't already):
     ```bash
-    git clone <repository_url>
+    git clone <https://github.com/Sravan1011/Gallery-App.git>
     cd galleryapp
     ```
 
