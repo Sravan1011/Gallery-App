@@ -60,7 +60,7 @@ function GalleryContent() {
             } else {
                 // Fetch specific photo if not in current list
                 const fetchSpecificPhoto = async () => {
-                    
+
                     if (!process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY) return; // Handle missing key gracefully
                     try {
                         const result = await unsplash.photos.get({ photoId });
@@ -92,7 +92,7 @@ function GalleryContent() {
     useEffect(() => {
         const fetchPhotos = async () => {
             setLoading(true);
-            
+
 
             if (!process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY) {
                 console.warn('Unsplash API key missing, using mock data');
@@ -157,14 +157,23 @@ function GalleryContent() {
                             Experience visual storytelling in real-time. Connect, react, and share your perspective with the world.
                         </p>
                     </div>
-                    <Link
-                        href="/feed"
-                        className="group flex items-center gap-3 px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full backdrop-blur-md transition-all hover:scale-105 hover:border-indigo-500/50"
-                    >
-                        <span className="text-xl group-hover:animate-pulse">🌍</span>
-                        <span className="font-medium tracking-wide">Live Activity</span>
-                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                    </Link>
+                    <div className="flex items-center gap-4">
+                        <Link
+                            href="/"
+                            className="group flex items-center gap-3 px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full backdrop-blur-md transition-all hover:scale-105 hover:border-indigo-500/50"
+                        >
+                            <span className="text-xl group-hover:-translate-x-1 transition-transform">←</span>
+                            <span className="font-medium tracking-wide">Home</span>
+                        </Link>
+                        <Link
+                            href="/feed"
+                            className="group flex items-center gap-3 px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full backdrop-blur-md transition-all hover:scale-105 hover:border-indigo-500/50"
+                        >
+                            <span className="text-xl group-hover:animate-pulse">🌍</span>
+                            <span className="font-medium tracking-wide">Live Activity</span>
+                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                        </Link>
+                    </div>
                 </header>
 
                 {loading ? (

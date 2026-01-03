@@ -30,9 +30,7 @@ export default function LandingPage() {
             <Link href="/feed" className="hidden md:block text-sm font-medium text-neutral-400 hover:text-white transition-colors">
               Global Feed
             </Link>
-            <Button asChild className="bg-white text-black hover:bg-neutral-200 rounded-full font-semibold px-6 shadow-[0_0_20px_rgba(255,255,255,0.1)]">
-              <Link href="/gallery">Launch App</Link>
-            </Button>
+
           </div>
         </div>
       </nav>
